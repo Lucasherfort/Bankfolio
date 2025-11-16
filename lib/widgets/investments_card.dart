@@ -45,7 +45,7 @@ class InvestmentsCard extends StatelessWidget {
                   // Valeur affichée selon présence ou non de comptes
                   Text(
                     hasNoAccounts
-                        ? "0,00 €"
+                        ? "0.00 €"
                         : "${totalAmount.toStringAsFixed(2)} €",
                     style: TextStyle(
                       fontSize: 18,
