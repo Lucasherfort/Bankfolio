@@ -130,6 +130,8 @@ class _HomePageState extends State<HomePage> {
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: "Comptes"),
           BottomNavigationBarItem(icon: Icon(Icons.add), label: "Ajouter"),
+          BottomNavigationBarItem(icon: Icon(Icons.auto_graph), label: "Graphiques"),
+          BottomNavigationBarItem(icon: Icon(Icons.format_indent_increase), label: "Plan"),
         ],
         onTap: (index) {
           setState(() => selectedIndex = index);

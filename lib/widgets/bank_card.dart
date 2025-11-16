@@ -42,18 +42,36 @@ class BankCard extends StatelessWidget {
             const SizedBox(height: 10),
 
             ...accounts.map((acc) {
-
               double montant = (acc['amount'] as num).toDouble();
               double interest = (acc['interest'] as num).toDouble();
-              double total = montant + interest;
-
-              print(total); // 19842.99
 
               return Padding(
                 padding: const EdgeInsets.symmetric(vertical: 3),
-                child: Text(
-                  "${acc['type']} : ${total.toStringAsFixed(2)} €",
-                  style: const TextStyle(fontSize: 16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    // Type de compte à gauche
+                    Text(
+                      acc['type'],
+                      style: const TextStyle(fontSize: 16),
+                    ),
+
+                    // Montant au centre
+                    Text(
+                      montant.toStringAsFixed(2) + " €",
+                      style: const TextStyle(fontSize: 16),
+                    ),
+
+                    // Intérêt à droite avec couleur
+                    Text(
+                      (interest >= 0 ? "+" : "") + interest.toStringAsFixed(2) + " €",
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: interest >= 0 ? Colors.green : Colors.red,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
                 ),
               );
             }),
