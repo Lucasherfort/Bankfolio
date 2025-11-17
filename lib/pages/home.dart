@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:myapplication/pages/savings_account.dart';
-import '../widgets/savings_card.dart';
-import '../widgets/investments_card.dart';
-import 'Savings_Info.dart';
+import '../models/account.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -12,110 +9,104 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  double patrimoine = 0.0;
-
-  // 🔥 Les deux nouvelles listes
-  List<SavingsAccount> savingsAccounts = [];
-  List<SavingsAccount> investmentsAccounts = [];
-
-  int selectedIndex = 0;
-
-  // --- Mettre à jour le patrimoine ---
-  void updatePatrimoine() {
-    double total = 0.0;
-
-    for (var acc in savingsAccounts) {
-      total += acc.amount + acc.interest;
-    }
-    for (var acc in investmentsAccounts) {
-      total += acc.amount + acc.interest;
-    }
-
-    setState(() => patrimoine = total);
-  }
+  int _selectedIndex = 0;
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFCCCCFF),
-      body: Column(
-        children: [
-          SafeArea(
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(20),
+    double totalBalance = demoAccounts.fold(0, (sum, account) => sum + account.balance);
+
+    final List<Widget> _pages = [
+      // Écran "Compte"
+      Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Colors.blueAccent, Colors.lightBlueAccent],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            SizedBox(height: 40),
+            Center(
               child: Column(
                 children: [
-                  const Text("Votre patrimoine total",
-                      style: TextStyle(fontSize: 18)),
-                  const SizedBox(height: 5),
                   Text(
-                    "${patrimoine.toStringAsFixed(2)} €",
-                    style: const TextStyle(
-                        fontSize: 36, fontWeight: FontWeight.bold),
+                    'Mon patrimoine :',
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
+                  ),
+                  SizedBox(height: 10),
+                  Text(
+                    '${totalBalance.toStringAsFixed(2)} €',
+                    style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.green[200]),
                   ),
                 ],
               ),
             ),
-          ),
-
-          // ----------- CARTES ----------- //
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                SavingsCard(
-                  accounts: savingsAccounts,
-                  onTap: () async {
-                    final result = await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => SavingsInfoPage(
-                          accounts: savingsAccounts, onAdd: (SavingsAccount p1) {  },
-                        ),
-                      ),
-                    );
-
-                    if (result != null) {
-                      setState(() => savingsAccounts = result);
-                      updatePatrimoine();
-                    }
-                  },
-                ),
-                const SizedBox(height: 20),
-                InvestmentsCard(
-                  accounts: investmentsAccounts,
-                  onTap: () {
-                    // Plus tard : page investments
-                  },
-                ),
-              ],
+            SizedBox(height: 30),
+            Expanded(
+              child: ListView.builder(
+                itemCount: demoAccounts.length,
+                itemBuilder: (context, index) {
+                  final account = demoAccounts[index];
+                  return Card(
+                    color: Colors.white.withOpacity(0.9),
+                    margin: EdgeInsets.all(8),
+                    child: ListTile(
+                      title: Text(account.name),
+                      trailing: Text('${account.balance.toStringAsFixed(2)} €'),
+                    ),
+                  );
+                },
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
 
+      // Écran "Graphiques"
+      Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Colors.purpleAccent, Colors.deepPurpleAccent],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+        ),
+        child: const Center(
+          child: Text(
+            'Graphiques à venir...',
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
+          ),
+        ),
+      ),
+    ];
+
+    return Scaffold(
+      body: SafeArea(
+        child: IndexedStack(
+          index: _selectedIndex,
+          children: _pages,
+        ),
+      ),
       bottomNavigationBar: BottomNavigationBar(
-        currentIndex: selectedIndex,
-        type: BottomNavigationBarType.fixed,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: "Accueil"),
-          BottomNavigationBarItem(icon: Icon(Icons.auto_graph_outlined), label: "Graphiques"),
-        ],
+        currentIndex: _selectedIndex,
         onTap: (index) {
-          setState(() => selectedIndex = index);
-          if (index == 1) {
-            // Ajouter un compte épargne
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => SavingsInfoPage(
-                  accounts: savingsAccounts, onAdd: (SavingsAccount p1) {  },
-                ),
-              ),
-            );
-          }
+          setState(() {
+            _selectedIndex = index;
+          });
         },
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.account_balance_wallet),
+            label: 'Compte',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.show_chart),
+            label: 'Graphiques',
+          ),
+        ],
       ),
     );
   }
