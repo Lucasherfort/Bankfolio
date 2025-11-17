@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
 import '../models/account.dart';
-import '../models/asset.dart';
 
 class AddAccountDialog extends StatefulWidget {
   final Function(Account) onAdd;
   final List<Account> existingAccounts;
+  final Account? account; // si présent, c'est une édition
 
   const AddAccountDialog({
     super.key,
     required this.onAdd,
     required this.existingAccounts,
+    this.account,
   });
 
   @override
@@ -19,130 +20,138 @@ class AddAccountDialog extends StatefulWidget {
 class _AddAccountDialogState extends State<AddAccountDialog> {
   AccountType? selectedType;
   SavingsType? selectedSavingsType;
-  String balance = '';
-  String interests = '';
+  TextEditingController balanceController = TextEditingController();
+  TextEditingController interestsController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    // Si édition, pré-remplir les champs
+    if (widget.account != null) {
+      selectedType = widget.account!.type;
+      selectedSavingsType = widget.account!.savingsType;
+      balanceController.text = widget.account!.balance.toStringAsFixed(2);
+      interestsController.text = widget.account!.interests?.toStringAsFixed(2) ?? '';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Ajouter un compte'),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Choix type général
-            DropdownButton<AccountType>(
-              value: selectedType,
-              hint: const Text('Type de compte'),
-              isExpanded: true,
-              items: const [
-                DropdownMenuItem(
-                  value: AccountType.Epargne,
-                  child: Text('Épargne'),
-                ),
-                DropdownMenuItem(
-                  value: AccountType.Investissement,
-                  child: Text('Investissement (PEA)'),
-                ),
-              ],
+      backgroundColor: Colors.white,
+      title: Text(widget.account != null ? 'Modifier le compte' : 'Ajouter un compte'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Choix type : épargne ou investissement
+          DropdownButtonFormField<AccountType>(
+            value: selectedType,
+            decoration: const InputDecoration(labelText: 'Type de compte'),
+            items: [
+              DropdownMenuItem(value: AccountType.Epargne, child: Text('Épargne')),
+              DropdownMenuItem(value: AccountType.Investissement, child: Text('Investissement (PEA)')),
+            ],
+            onChanged: (value) {
+              setState(() {
+                selectedType = value;
+                if (selectedType == AccountType.Investissement) {
+                  selectedSavingsType = null;
+                }
+              });
+            },
+          ),
+          const SizedBox(height: 8),
+
+          // Si épargne, choisir Livret A ou LDDS
+          if (selectedType == AccountType.Epargne)
+            DropdownButtonFormField<SavingsType>(
+              value: selectedSavingsType,
+              decoration: const InputDecoration(labelText: 'Type d’épargne'),
+              items: SavingsType.values.map((s) {
+                bool disabled = widget.existingAccounts.any(
+                      (a) => a.savingsType == s && a != widget.account,
+                );
+                return DropdownMenuItem(
+                  value: s,
+                  enabled: !disabled,
+                  child: Text(s == SavingsType.LivretA ? 'Livret A' : 'LDDS'),
+                );
+              }).toList(),
               onChanged: (value) {
                 setState(() {
-                  selectedType = value;
-                  selectedSavingsType = null;
-                  balance = '';
-                  interests = '';
+                  selectedSavingsType = value;
                 });
               },
             ),
+          const SizedBox(height: 8),
 
-            const SizedBox(height: 10),
+          // Montant solde
+          TextField(
+            controller: balanceController,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(labelText: 'Montant (€)'),
+          ),
 
-            // Si Épargne → Livret A ou LDDS
-            if (selectedType == AccountType.Epargne)
-              DropdownButton<SavingsType>(
-                value: selectedSavingsType,
-                hint: const Text('Type d’épargne'),
-                isExpanded: true,
-                items: SavingsType.values.map((type) {
-                  bool disabled = widget.existingAccounts.any((a) => a.savingsType == type);
-                  return DropdownMenuItem(
-                    value: disabled ? null : type,
-                    enabled: !disabled,
-                    child: Text(
-                      type == SavingsType.LivretA ? 'Livret A' : 'LDDS',
-                      style: disabled ? const TextStyle(color: Colors.grey) : null,
-                    ),
-                  );
-                }).toList(),
-                onChanged: (value) => setState(() => selectedSavingsType = value),
-              ),
-
-            // Solde pour épargne
-            if (selectedType == AccountType.Epargne)
-              TextField(
-                decoration: const InputDecoration(labelText: 'Solde'),
-                keyboardType: TextInputType.numberWithOptions(decimal: true),
-                onChanged: (value) => balance = value,
-              ),
-
-            // Intérêts pour épargne
-            if (selectedType == AccountType.Epargne)
-              TextField(
-                decoration: const InputDecoration(labelText: 'Intérêts'),
-                keyboardType: TextInputType.numberWithOptions(decimal: true),
-                onChanged: (value) => interests = value,
-              ),
-          ],
-        ),
+          // Intérêts uniquement pour épargne
+          if (selectedType == AccountType.Epargne)
+            TextField(
+              controller: interestsController,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(labelText: 'Intérêts (€)'),
+            ),
+        ],
       ),
       actions: [
         TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Annuler')),
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Annuler', style: TextStyle(color: Colors.teal)),
+        ),
         ElevatedButton(
           onPressed: () {
-            if (selectedType == null) return;
+            // Parsing nombres avec . ou ,
+            double balance = double.tryParse(balanceController.text.replaceAll(',', '.')) ?? 0;
+            double interests = double.tryParse(interestsController.text.replaceAll(',', '.')) ?? 0;
 
-            if (selectedType == AccountType.Epargne) {
-              if (selectedSavingsType == null) return;
-
-              double parsedBalance = double.tryParse(balance.replaceAll(',', '.')) ?? 0;
-              double parsedInterests = double.tryParse(interests.replaceAll(',', '.')) ?? 0;
-
-              // Plafonds
-              if (selectedSavingsType == SavingsType.LivretA && parsedBalance > 22950) {
+            // Vérifier plafonds épargne
+            if (selectedType == AccountType.Epargne && selectedSavingsType != null) {
+              double plafond = selectedSavingsType == SavingsType.LivretA ? 22950 : 12000;
+              if (balance > plafond) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Le Livret A ne peut dépasser 22 950€')));
+                  SnackBar(content: Text('Le solde dépasse le plafond de ${plafond.toStringAsFixed(0)} €')),
+                );
                 return;
               }
-              if (selectedSavingsType == SavingsType.LDDS && parsedBalance > 12000) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Le LDDS ne peut dépasser 12 000€')));
-                return;
-              }
+            }
 
-              widget.onAdd(Account(
-                name: selectedSavingsType == SavingsType.LivretA ? 'Livret A' : 'LDDS',
-                balance: parsedBalance,
-                type: AccountType.Epargne,
-                interests: parsedInterests,
+            // Créer ou modifier
+            if (widget.account != null) {
+              // Édition
+              widget.account!
+                ..balance = balance
+                ..interests = interests
+                ..type = selectedType!
+                ..savingsType = selectedSavingsType;
+              widget.onAdd(widget.account!);
+            } else {
+              // Création
+              Account newAccount = Account(
+                name: selectedType == AccountType.Epargne
+                    ? (selectedSavingsType == SavingsType.LivretA ? 'Livret A' : 'LDDS')
+                    : 'PEA',
+                balance: balance,
+                type: selectedType!,
                 savingsType: selectedSavingsType,
-              ));
-            } else if (selectedType == AccountType.Investissement) {
-              // Création PEA simple
-              widget.onAdd(Account(
-                name: 'PEA',
-                balance: 0,
-                type: AccountType.Investissement,
-                assets: [],
-              ));
+                interests: selectedType == AccountType.Epargne ? interests : null,
+              );
+              widget.onAdd(newAccount);
             }
 
             Navigator.pop(context);
           },
-          child: const Text('Ajouter'),
+          child: Text(widget.account != null ? 'Modifier' : 'Ajouter'),
         ),
       ],
     );
   }
 }
+
