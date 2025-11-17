@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/account.dart';
 import '../widgets/account_list_section.dart';
 import '../widgets/add_account_dialog.dart';
+import 'pea_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -11,130 +12,106 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  int _selectedIndex = 0;
   List<Account> accounts = [];
 
   @override
   Widget build(BuildContext context) {
-    // Séparer les comptes par type
-    List<Account> savingsAccounts =
+    double totalBalance = accounts.fold(0, (sum, a) => sum + a.balance);
+
+    final epargneAccounts =
     accounts.where((a) => a.type == AccountType.Epargne).toList();
-    List<Account> investmentAccounts =
-    accounts.where((a) => a.type == AccountType.Investissement).toList();
+    final investmentAccounts =
+    accounts.where((a) => a.type == AccountType.Investissement || a.type == AccountType.PEA).toList();
 
-    double totalSavings = savingsAccounts.fold(
-        0, (sum, account) => sum + account.balance + (account.interests ?? 0));
-    double totalInvestments =
-    investmentAccounts.fold(0, (sum, account) => sum + account.balance);
-
-    final List<Widget> _pages = [
-      // Écran "Compte"
-      Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Colors.blueAccent, Colors.lightBlueAccent],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
-        ),
-        child: ListView(
-          padding: const EdgeInsets.symmetric(vertical: 40),
+    return Scaffold(
+      backgroundColor: Colors.blueGrey.shade900,
+      body: SafeArea(
+        child: Column(
           children: [
-            // Patrimoine total
-            Center(
-              child: Column(
-                children: [
-                  const Text(
-                    'Mon patrimoine :',
-                    style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    '${(totalSavings + totalInvestments).toStringAsFixed(2)} €',
-                    style: TextStyle(
-                        fontSize: 32,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.green[200]),
-                  ),
-                ],
-              ),
-            ),
             const SizedBox(height: 30),
-
-            // Section Mon épargne
-            AccountListSection(
-              title: 'Mon épargne',
-              accounts: savingsAccounts,
-              onEdit: _editAccount,
-              onDelete: _deleteAccount,
+            // HEADER
+            Column(
+              children: [
+                const Text(
+                  'Mon patrimoine :',
+                  style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '${totalBalance.toStringAsFixed(2)} €',
+                  style: const TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white),
+                ),
+              ],
             ),
+            const SizedBox(height: 20),
 
-            // Section Mes investissements
-            AccountListSection(
-              title: 'Mes investissements',
-              accounts: investmentAccounts,
-              onEdit: _editAccount,
-              onDelete: _deleteAccount,
+            // CONTENU
+            Expanded(
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    // ÉPARGNE
+                    AccountListSection(
+                      title: 'Mon épargne',
+                      accounts: epargneAccounts,
+                      onEdit: _editAccount,
+                      onDelete: _deleteAccount,
+                    ),
+                    const SizedBox(height: 20),
+
+                    // INVESTISSEMENTS
+                    AccountListSection(
+                      title: 'Mes investissements',
+                      accounts: investmentAccounts,
+                      onEdit: (account) {
+                        if (account.type == AccountType.PEA) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => PeaPage(account: account),
+                            ),
+                          ).then((_) => setState(() {}));
+                        } else {
+                          _editAccount(account);
+                        }
+                      },
+                      onDelete: _deleteAccount,
+                    ),
+                  ],
+                ),
+              ),
             ),
           ],
         ),
       ),
 
-      // Écran Graphiques
-      Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Colors.purpleAccent, Colors.deepPurpleAccent],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
-        ),
-        child: const Center(
-          child: Text(
-            'Graphiques à venir...',
-            style: TextStyle(
-                fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
-          ),
-        ),
+      // BOUTON AJOUTER
+      floatingActionButton: FloatingActionButton(
+        onPressed: _addAccount,
+        backgroundColor: Colors.tealAccent.shade700,
+        child: const Icon(Icons.add, color: Colors.white),
       ),
-    ];
-
-    return Scaffold(
-      body: SafeArea(
-        child: IndexedStack(
-          index: _selectedIndex,
-          children: _pages,
-        ),
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedIndex,
-        onTap: (index) => setState(() => _selectedIndex = index),
-        items: const [
-          BottomNavigationBarItem(
-              icon: Icon(Icons.account_balance_wallet), label: 'Compte'),
-          BottomNavigationBarItem(icon: Icon(Icons.show_chart), label: 'Graphiques'),
-        ],
-      ),
-      floatingActionButton: _selectedIndex == 0
-          ? FloatingActionButton(
-        onPressed: () => _addAccount(),
-        child: const Icon(Icons.add),
-      )
-          : null,
     );
   }
 
+  // AJOUTER UN COMPTE
   void _addAccount() {
     showDialog(
       context: context,
       builder: (context) {
         return AddAccountDialog(
-          existingAccounts: accounts, // <-- ici
+          existingAccounts: accounts,
           onAdd: (account) {
             setState(() {
+              if (account.type == AccountType.PEA && account.assets == null) {
+                account.assets = [];
+              }
               accounts.add(account);
             });
           },
@@ -143,48 +120,69 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  // MODIFIER UN COMPTE
   void _editAccount(Account account) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AddAccountDialog(
-          account: account,
-          existingAccounts: accounts, // <-- ici aussi
-          onAdd: (updatedAccount) {
-            setState(() {
-              account.name = updatedAccount.name;
-              account.balance = updatedAccount.balance;
-              account.interests = updatedAccount.interests;
-              account.type = updatedAccount.type;
-              account.savingsType = updatedAccount.savingsType;
-            });
-          },
-        );
-      },
-    );
+    if (account.type == AccountType.Investissement && account.name == 'PEA') {
+      // Ouvrir la page PEA
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => PeaPage(account: account),
+        ),
+      ).then((_) => setState(() {})); // rafraîchir HomePage après modifications
+    } else {
+      // Modifier épargne
+      showDialog(
+        context: context,
+        builder: (context) {
+          return AddAccountDialog(
+            existingAccounts: accounts,
+            onAdd: (updatedAccount) {
+              setState(() {
+                account.name = updatedAccount.name;
+                account.balance = updatedAccount.balance;
+                account.type = updatedAccount.type;
+                account.interests = updatedAccount.interests;
+                account.savingsType = updatedAccount.savingsType;
+                account.assets = updatedAccount.assets ?? account.assets;
+              });
+            },
+          );
+        },
+      );
+    }
   }
 
+  // SUPPRIMER UN COMPTE
   void _deleteAccount(Account account) {
     showDialog(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Supprimer le compte'),
-          content: Text('Voulez-vous vraiment supprimer "${account.name}" ?'),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Annuler')),
-            ElevatedButton(
-              onPressed: () {
-                setState(() => accounts.remove(account));
-                Navigator.pop(context);
-              },
-              child: const Text('Supprimer'),
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.blueGrey.shade800,
+        title: const Text('Supprimer le compte', style: TextStyle(color: Colors.white)),
+        content: Text(
+          'Voulez-vous vraiment supprimer "${account.name}" ?',
+          style: const TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Annuler', style: TextStyle(color: Colors.tealAccent)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
             ),
-          ],
-        );
-      },
+            onPressed: () {
+              setState(() {
+                accounts.remove(account);
+              });
+              Navigator.pop(context);
+            },
+            child: const Text('Supprimer'),
+          ),
+        ],
+      ),
     );
   }
 }

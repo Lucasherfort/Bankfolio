@@ -1,9 +1,11 @@
-enum AccountType { Epargne, Investissement }
+import 'asset.dart';
+
+enum AccountType { Epargne, Investissement, PEA }
 
 enum SavingsType { LivretA, LDDS }
 
 class Account {
-  String name; // pour Investissements
+  String name;
   double balance;
   AccountType type;
 
@@ -11,11 +13,15 @@ class Account {
   double? interests;
   SavingsType? savingsType;
 
+  // Pour le PEA : liste des actifs
+  List<Asset>? assets;
+
   Account({
     required this.name,
     required this.balance,
     required this.type,
     this.interests,
     this.savingsType,
+    this.assets,
   });
 }
