@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/account.dart';
+import '../widgets/account_list_section.dart';
+import '../widgets/add_account_dialog.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -10,10 +12,20 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   int _selectedIndex = 0;
+  List<Account> accounts = [];
 
   @override
   Widget build(BuildContext context) {
-    double totalBalance = demoAccounts.fold(0, (sum, account) => sum + account.balance);
+    // Séparer les comptes par type
+    List<Account> savingsAccounts =
+    accounts.where((a) => a.type == AccountType.Epargne).toList();
+    List<Account> investmentAccounts =
+    accounts.where((a) => a.type == AccountType.Investissement).toList();
+
+    double totalSavings = savingsAccounts.fold(
+        0, (sum, account) => sum + account.balance + (account.interests ?? 0));
+    double totalInvestments =
+    investmentAccounts.fold(0, (sum, account) => sum + account.balance);
 
     final List<Widget> _pages = [
       // Écran "Compte"
@@ -25,47 +37,53 @@ class _HomePageState extends State<HomePage> {
             end: Alignment.bottomCenter,
           ),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
+        child: ListView(
+          padding: const EdgeInsets.symmetric(vertical: 40),
           children: [
-            SizedBox(height: 40),
+            // Patrimoine total
             Center(
               child: Column(
                 children: [
-                  Text(
+                  const Text(
                     'Mon patrimoine :',
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
+                    style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white),
                   ),
-                  SizedBox(height: 10),
+                  const SizedBox(height: 10),
                   Text(
-                    '${totalBalance.toStringAsFixed(2)} €',
-                    style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.green[200]),
+                    '${(totalSavings + totalInvestments).toStringAsFixed(2)} €',
+                    style: TextStyle(
+                        fontSize: 32,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.green[200]),
                   ),
                 ],
               ),
             ),
-            SizedBox(height: 30),
-            Expanded(
-              child: ListView.builder(
-                itemCount: demoAccounts.length,
-                itemBuilder: (context, index) {
-                  final account = demoAccounts[index];
-                  return Card(
-                    color: Colors.white.withOpacity(0.9),
-                    margin: EdgeInsets.all(8),
-                    child: ListTile(
-                      title: Text(account.name),
-                      trailing: Text('${account.balance.toStringAsFixed(2)} €'),
-                    ),
-                  );
-                },
-              ),
+            const SizedBox(height: 30),
+
+            // Section Mon épargne
+            AccountListSection(
+              title: 'Mon épargne',
+              accounts: savingsAccounts,
+              onEdit: _editAccount,
+              onDelete: _deleteAccount,
+            ),
+
+            // Section Mes investissements
+            AccountListSection(
+              title: 'Mes investissements',
+              accounts: investmentAccounts,
+              onEdit: _editAccount,
+              onDelete: _deleteAccount,
             ),
           ],
         ),
       ),
 
-      // Écran "Graphiques"
+      // Écran Graphiques
       Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
@@ -77,7 +95,8 @@ class _HomePageState extends State<HomePage> {
         child: const Center(
           child: Text(
             'Graphiques à venir...',
-            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
+            style: TextStyle(
+                fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
           ),
         ),
       ),
@@ -92,22 +111,77 @@ class _HomePageState extends State<HomePage> {
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
-        onTap: (index) {
-          setState(() {
-            _selectedIndex = index;
-          });
-        },
+        onTap: (index) => setState(() => _selectedIndex = index),
         items: const [
           BottomNavigationBarItem(
-            icon: Icon(Icons.account_balance_wallet),
-            label: 'Compte',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.show_chart),
-            label: 'Graphiques',
-          ),
+              icon: Icon(Icons.account_balance_wallet), label: 'Compte'),
+          BottomNavigationBarItem(icon: Icon(Icons.show_chart), label: 'Graphiques'),
         ],
       ),
+      floatingActionButton: _selectedIndex == 0
+          ? FloatingActionButton(
+        onPressed: () => _addAccount(),
+        child: const Icon(Icons.add),
+      )
+          : null,
+    );
+  }
+
+  void _addAccount() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AddAccountDialog(
+          onAdd: (account) {
+            setState(() {
+              accounts.add(account);
+            });
+          },
+        );
+      },
+    );
+  }
+
+  void _editAccount(Account account) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AddAccountDialog(
+          account: account,
+          onAdd: (updatedAccount) {
+            setState(() {
+              account.name = updatedAccount.name;
+              account.balance = updatedAccount.balance;
+              account.interests = updatedAccount.interests;
+              account.type = updatedAccount.type;
+            });
+          },
+        );
+      },
+    );
+  }
+
+  void _deleteAccount(Account account) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Supprimer le compte'),
+          content: Text('Voulez-vous vraiment supprimer "${account.name}" ?'),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Annuler')),
+            ElevatedButton(
+              onPressed: () {
+                setState(() => accounts.remove(account));
+                Navigator.pop(context);
+              },
+              child: const Text('Supprimer'),
+            ),
+          ],
+        );
+      },
     );
   }
 }

@@ -1,13 +1,20 @@
+enum AccountType { Epargne, Investissement }
+
 class Account {
-  final String name;
-  final double balance;
+  String name;
+  double balance;
+  AccountType type;
 
-  Account({required this.name, required this.balance});
+  // Pour l'épargne simple (Livret A, LDDS)
+  double? interests;
+
+  // Pour les investissements, on pourra ajouter une liste d'actifs plus tard
+  // List<Investment>? investments;
+
+  Account({
+    required this.name,
+    required this.balance,
+    required this.type,
+    this.interests,
+  });
 }
-
-// Exemple de données de test
-final List<Account> demoAccounts = [
-  Account(name: 'PEA', balance: 12000.0),
-  Account(name: 'Livret A', balance: 5000.0),
-  Account(name: 'Crypto', balance: 2000.0),
-];
