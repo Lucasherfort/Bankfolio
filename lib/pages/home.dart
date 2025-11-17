@@ -132,6 +132,7 @@ class _HomePageState extends State<HomePage> {
       context: context,
       builder: (context) {
         return AddAccountDialog(
+          existingAccounts: accounts, // <-- ici
           onAdd: (account) {
             setState(() {
               accounts.add(account);
@@ -148,12 +149,14 @@ class _HomePageState extends State<HomePage> {
       builder: (context) {
         return AddAccountDialog(
           account: account,
+          existingAccounts: accounts, // <-- ici aussi
           onAdd: (updatedAccount) {
             setState(() {
               account.name = updatedAccount.name;
               account.balance = updatedAccount.balance;
               account.interests = updatedAccount.interests;
               account.type = updatedAccount.type;
+              account.savingsType = updatedAccount.savingsType;
             });
           },
         );

@@ -1,20 +1,21 @@
 enum AccountType { Epargne, Investissement }
 
+enum SavingsType { LivretA, LDDS }
+
 class Account {
-  String name;
+  String name; // pour Investissements
   double balance;
   AccountType type;
 
-  // Pour l'épargne simple (Livret A, LDDS)
+  // Pour l'épargne
   double? interests;
-
-  // Pour les investissements, on pourra ajouter une liste d'actifs plus tard
-  // List<Investment>? investments;
+  SavingsType? savingsType;
 
   Account({
     required this.name,
     required this.balance,
     required this.type,
     this.interests,
+    this.savingsType,
   });
 }
